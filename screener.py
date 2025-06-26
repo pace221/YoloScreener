@@ -33,8 +33,20 @@ def analyze_index(ticker):
         print(f"[Fehler] Indexdaten {ticker}: {e}")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    if df.empty or 'Close' not in df.columns or df['Close'].isna().sum() > 5 or len(df) < 220:
-        print(f"[WARNUNG] {ticker}: Daten unvollständig oder zu kurz.")
+    if df.empty:
+        print(f"[WARNUNG] {ticker}: Keine Daten empfangen.")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    if 'Close' not in df.columns:
+        print(f"[WARNUNG] {ticker}: Spalte 'Close' fehlt.")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    if df['Close'].isna().sum() > 5:
+        print(f"[WARNUNG] {ticker}: Zu viele fehlende Werte in 'Close'.")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    if len(df) < 220:
+        print(f"[WARNUNG] {ticker}: Zu wenig Daten für EMA200.")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     df['EMA10'] = calculate_ema(df['Close'], 10)
