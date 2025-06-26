@@ -30,26 +30,19 @@ def analyze_index(ticker):
     try:
         df = yf.download(ticker, period="12mo", interval="1d", progress=False)
 
-        if df.empty:
-            print(f"[WARNUNG] {ticker}: Keine Daten empfangen.")
-            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        if df.empty or 'Close' not in df.columns:
+            raise ValueError(f"{ticker} enthält keine gültige 'Close'-Spalte.")
 
-        if 'Close' not in df.columns:
-            print(f"[WARNUNG] {ticker}: Spalte 'Close' fehlt.")
-            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
-
-        close_series = df['Close']
-        if close_series.isna().sum() > 5:
-            print(f"[WARNUNG] {ticker}: Zu viele fehlende Werte in 'Close'.")
-            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        df = df.copy()
+        df.dropna(subset=["Close"], inplace=True)
 
         if len(df) < 220:
-            print(f"[WARNUNG] {ticker}: Zu wenig Daten für EMA200.")
-            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+            raise ValueError(f"{ticker}: Nicht genügend Daten für EMA200 (mind. 220 Tage).")
 
-        df['EMA10'] = calculate_ema(close_series, 10)
-        df['EMA20'] = calculate_ema(close_series, 20)
-        df['EMA200'] = calculate_ema(close_series, 200)
+        df['EMA10'] = calculate_ema(df['Close'], 10)
+        df['EMA20'] = calculate_ema(df['Close'], 20)
+        df['EMA200'] = calculate_ema(df['Close'], 200)
+
         latest = df.iloc[-1]
 
         return {
@@ -59,7 +52,7 @@ def analyze_index(ticker):
         }
 
     except Exception as e:
-        print(f"[Fehler] Indexanalyse für {ticker} fehlgeschlagen: {e}")
+        print(f"[Fehler] {ticker}: {e}")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
 def get_index_status():
