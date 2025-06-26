@@ -12,6 +12,47 @@ index_status = get_index_status()
 
 st.subheader("📈 Marktstatus")
 
+with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False):
+    st.markdown("""
+    Das System screent alle im S&P 500 und NASDAQ 100 enthaltenen Aktien täglich auf folgende **Long-Signale**:
+
+    ### ✅ Verwendete Signal-Kriterien
+
+    - **EMA Reclaim**  
+      Der Schlusskurs überwindet den EMA10 oder EMA20 nach einem Tag darunter.  
+      _Hinweis: Trendfortsetzungs- oder Umkehrsignal._
+
+    - **Breakout 20-Tages-Hoch**  
+      Kurs bricht über den höchsten Stand der letzten 20 Handelstage.
+
+    - **Cup-with-Handle**  
+      Klassische Bodenformation mit Ausbruch nach Konsolidierung.
+
+    - **SFP (Swing Failure Pattern)**  
+      Unterschreiten vorheriger Tiefs mit starkem Rebound – häufig als Fehlausbruch gewertet.
+
+    - **Inside Day Breakout**  
+      Tageskerze vollständig innerhalb der Vortageskerze → Ausbruch über das Hoch gilt als Einstieg.
+
+    - **RSI > 60**  
+      Relative Stärke vorhanden, oft Filter zur Bestätigung des Trends.
+
+    - **Volumen-Breakout**  
+      Tagesvolumen liegt über dem 20-Tage-Durchschnitt, was auf institutionelles Interesse hindeutet.
+
+    ### 📊 Nur Aktien, die **mindestens ein Signal** erfüllen, werden angezeigt.
+
+    """)
+    
+    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/ema_reclaim.png", 
+             caption="📈 Beispiel: EMA20-Reclaim mit steigendem Volumen", use_column_width=True)
+
+    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/cup_handle.png", 
+             caption="🏆 Beispiel: Cup-with-Handle-Formation mit Breakout", use_column_width=True)
+
+    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/inside_day_breakout.png", 
+             caption="📉 Beispiel: Inside Day mit Ausbruch über das Vortageshoch", use_column_width=True)
+    
 for index, status in index_status.items():
     st.markdown(f"**{index} Status:**")
     cols = st.columns(3)
