@@ -10,7 +10,8 @@ def get_tickers():
         sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
         nasdaq = pd.read_html('https://en.wikipedia.org/wiki/NASDAQ-100')[4]['Ticker'].tolist()
         return list(set(sp500 + nasdaq))
-    except:
+    except Exception as e:
+        print(f"[Fehler] Ticker-Import: {e}")
         return []
 
 def calculate_ema(series, window):
@@ -26,9 +27,14 @@ def calculate_rsi(series, window=14):
     return 100 - (100 / (1 + rs))
 
 def analyze_index(ticker):
-    df = yf.download(ticker, period="12mo", interval="1d", progress=False)
-    if df.empty or 'Close' not in df or len(df) < 220:
-        print(f"[WARNUNG] {ticker}: Nicht genug Daten für EMA-Berechnung.")
+    try:
+        df = yf.download(ticker, period="12mo", interval="1d", progress=False)
+    except Exception as e:
+        print(f"[Fehler] Indexdaten {ticker}: {e}")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    if df.empty or 'Close' not in df.columns or df['Close'].isna().sum() > 5 or len(df) < 220:
+        print(f"[WARNUNG] {ticker}: Daten unvollständig oder zu kurz.")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     df['EMA10'] = calculate_ema(df['Close'], 10)
@@ -74,7 +80,8 @@ def analyze_stock(ticker, active_signals):
             signals_detected.append("EMA Reclaim")
 
     if "Breakout 20d High" in active_signals:
-        if latest['Close'] > df['High'].rolling(window=20).max().iloc[-2]:
+        highest_20d = df['High'].rolling(window=20).max().shift(1)
+        if latest['Close'] > highest_20d.iloc[-1]:
             signals_detected.append("Breakout 20d High")
 
     if "RSI > 60" in active_signals:
