@@ -1,7 +1,5 @@
 import yfinance as yf
 import pandas as pd
-from ta.trend import EMAIndicator
-from ta.momentum import RSIIndicator
 from datetime import datetime
 
 RISK_EUR = 100
@@ -14,18 +12,34 @@ def get_tickers():
     tickers = list(set(sp500 + nasdaq))
     return [t.replace('.', '-') for t in tickers]
 
+def calculate_ema(series, window):
+    return series.ewm(span=window, adjust=False).mean()
+
+def calculate_rsi(series, window=14):
+    delta = series.diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window=window).mean()
+    avg_loss = loss.rolling(window=window).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-    df['EMA10'] = EMAIndicator(close=df['Close'], window=10).ema_indicator()
-    df['EMA20'] = EMAIndicator(close=df['Close'], window=20).ema_indicator()
-    df['EMA200'] = EMAIndicator(close=df['Close'], window=200).ema_indicator()
+    if df.empty:
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    df['EMA10'] = calculate_ema(df['Close'], 10)
+    df['EMA20'] = calculate_ema(df['Close'], 20)
+    df['EMA200'] = calculate_ema(df['Close'], 200)
     latest = df.iloc[-1]
-    status = {
+
+    return {
         "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
         "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
         "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
     }
-    return status
 
 def analyze_stock(ticker):
     try:
@@ -34,11 +48,11 @@ def analyze_stock(ticker):
         if df.shape[0] < 25:
             return None
 
-        df['EMA10'] = EMAIndicator(close=df['Close'], window=10).ema_indicator()
-        df['EMA20'] = EMAIndicator(close=df['Close'], window=20).ema_indicator()
-        df['EMA200'] = EMAIndicator(close=df['Close'], window=200).ema_indicator()
+        df['EMA10'] = calculate_ema(df['Close'], 10)
+        df['EMA20'] = calculate_ema(df['Close'], 20)
+        df['EMA200'] = calculate_ema(df['Close'], 200)
         df['Volume_MA20'] = df['Volume'].rolling(window=20).mean()
-        df['RSI'] = RSIIndicator(close=df['Close']).rsi()
+        df['RSI'] = calculate_rsi(df['Close'])
 
         latest = df.iloc[-1]
         prev = df.iloc[-2]
