@@ -2,6 +2,7 @@ import streamlit as st
 from screener import get_tickers, analyze_stock, get_index_status
 from export_pdf import export_to_pdf
 import pandas as pd
+import yfinance as yf
 
 st.set_page_config(layout="wide")
 st.title("📊 Trading Screener – Long Setups (S&P500 & NASDAQ)")
@@ -24,9 +25,9 @@ for index, status in index_status.items():
 
 st.markdown("---")
 
-# 🚀 Screener mit Fortschritt
+# 🚀 Screener starten
 if st.button("Screening starten"):
-    tickers = get_tickers()  # ✅ Alle S&P500 + NASDAQ-100 Ticker (~600)
+    tickers = get_tickers()  # Alle Ticker prüfen (~518)
     results = []
     progress = st.progress(0)
     status_text = st.empty()
@@ -40,33 +41,33 @@ if st.button("Screening starten"):
 
     df = pd.DataFrame(results)
 
-# Datum der Analyse ermitteln
-latest_data = None
-for ticker in df["Ticker"]:
-    try:
-        hist = yf.download(ticker, period="5d", interval="1d", progress=False)
-        if not hist.empty:
-            latest_data = hist.index[-1].strftime("%Y-%m-%d")
-            break
-    except:
-        continue
-
-if latest_data:
-    st.info(f"📅 Screening-Basis: Schlusskurs vom **{latest_data}**")
-    
     if df.empty:
         st.warning("Keine Setups gefunden.")
     else:
+        # 📅 Analyse-Datum anzeigen
+        latest_data = None
+        for ticker in df["Ticker"]:
+            try:
+                hist = yf.download(ticker, period="5d", interval="1d", progress=False)
+                if not hist.empty:
+                    latest_data = hist.index[-1].strftime("%Y-%m-%d")
+                    break
+            except:
+                continue
+
+        if latest_data:
+            st.info(f"📅 Screening-Basis: Schlusskurs vom **{latest_data}**")
+
         st.success(f"{len(df)} gültige Setups gefunden!")
         df_show = df.drop(columns=["KO-Link"])
         st.dataframe(df_show)
 
-        # 📄 PDF-Export
+        # 📄 PDF exportieren
         export_to_pdf(df)
         with open("trading_signale.pdf", "rb") as f:
             st.download_button("📥 PDF herunterladen", f, file_name="trading_signale.pdf")
 
-        # 🔗 KO-Links
+        # 🔗 KO-Produkte anzeigen
         st.markdown("---")
         st.subheader("🔎 KO-Produkte (OnVista)")
         for _, row in df.iterrows():
