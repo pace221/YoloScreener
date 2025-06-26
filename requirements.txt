@@ -3,4 +3,3 @@ yfinance
 fpdf
 pandas
 lxml
-ta
