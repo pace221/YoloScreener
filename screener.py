@@ -33,13 +33,16 @@ def analyze_index(ticker):
     df['EMA10'] = calculate_ema(df['Close'], 10)
     df['EMA20'] = calculate_ema(df['Close'], 20)
     df['EMA200'] = calculate_ema(df['Close'], 200)
-    latest = df.iloc[-1]
+    close = df['Close'].iloc[-1]
+ema10 = df['EMA10'].iloc[-1]
+ema20 = df['EMA20'].iloc[-1]
+ema200 = df['EMA200'].iloc[-1]
 
-    return {
-        "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
-        "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
-        "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
-    }
+return {
+    "EMA10": "über" if close > ema10 else "unter",
+    "EMA20": "über" if close > ema20 else "unter",
+    "EMA200": "über" if close > ema200 else "unter"
+}
 
 def analyze_stock(ticker):
     try:
