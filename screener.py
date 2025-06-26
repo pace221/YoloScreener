@@ -34,10 +34,10 @@ def analyze_index(ticker):
     df['EMA20'] = calculate_ema(df['Close'], 20)
     df['EMA200'] = calculate_ema(df['Close'], 200)
 
-    close = df['Close'].iloc[-1]
-    ema10 = df['EMA10'].iloc[-1]
-    ema20 = df['EMA20'].iloc[-1]
-    ema200 = df['EMA200'].iloc[-1]
+close = df['Close'].values[-1]
+ema10 = df['EMA10'].values[-1]
+ema20 = df['EMA20'].values[-1]
+ema200 = df['EMA200'].values[-1]
 
     return {
         "EMA10": "über" if close > ema10 else "unter",
