@@ -26,7 +26,7 @@ st.markdown("---")
 
 # 🚀 Screener mit Fortschritt
 if st.button("Screening starten"):
-    tickers = get_tickers()[:50]  # Begrenze initial auf 50 für Geschwindigkeit
+    tickers = get_tickers()  # ✅ Alle S&P500 + NASDAQ-100 Ticker (~600)
     results = []
     progress = st.progress(0)
     status_text = st.empty()
