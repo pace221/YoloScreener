@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas as pd
-import ta
+from ta.trend import EMAIndicator
+from ta.momentum import RSIIndicator
 from datetime import datetime
 
 RISK_EUR = 100
@@ -15,9 +16,9 @@ def get_tickers():
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-    df['EMA10'] = ta.trend.ema_indicator(df['Close'], window=10).ema_indicator()
-    df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).ema_indicator()
-    df['EMA200'] = ta.trend.ema_indicator(df['Close'], window=200).ema_indicator()
+    df['EMA10'] = EMAIndicator(close=df['Close'], window=10).ema_indicator()
+    df['EMA20'] = EMAIndicator(close=df['Close'], window=20).ema_indicator()
+    df['EMA200'] = EMAIndicator(close=df['Close'], window=200).ema_indicator()
     latest = df.iloc[-1]
     status = {
         "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
@@ -33,11 +34,11 @@ def analyze_stock(ticker):
         if df.shape[0] < 25:
             return None
 
-        df['EMA10'] = ta.trend.ema_indicator(df['Close'], window=10).ema_indicator()
-        df['EMA20'] = ta.trend.ema_indicator(df['Close'], window=20).ema_indicator()
-        df['EMA200'] = ta.trend.ema_indicator(df['Close'], window=200).ema_indicator()
+        df['EMA10'] = EMAIndicator(close=df['Close'], window=10).ema_indicator()
+        df['EMA20'] = EMAIndicator(close=df['Close'], window=20).ema_indicator()
+        df['EMA200'] = EMAIndicator(close=df['Close'], window=200).ema_indicator()
         df['Volume_MA20'] = df['Volume'].rolling(window=20).mean()
-        df['RSI'] = ta.momentum.RSIIndicator(df['Close']).rsi()
+        df['RSI'] = RSIIndicator(close=df['Close']).rsi()
 
         latest = df.iloc[-1]
         prev = df.iloc[-2]
