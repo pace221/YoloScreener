@@ -7,11 +7,22 @@ import yfinance as yf
 st.set_page_config(layout="wide")
 st.title("📊 Trading Screener – Long Setups (S&P500 & NASDAQ)")
 
-# 🧭 Marktstatus (SPY & QQQ)
-index_status = get_index_status()
-
+# 📈 Marktstatus
 st.subheader("📈 Marktstatus")
 
+index_status = get_index_status()
+for index, status in index_status.items():
+    st.markdown(f"**{index} Status:**")
+    cols = st.columns(3)
+    for i, (ema, val) in enumerate(status.items()):
+        if val == "über":
+            cols[i].success(f"{ema}: über")
+        elif val == "unter":
+            cols[i].error(f"{ema}: unter")
+        else:
+            cols[i].warning(f"{ema}: n/a")
+
+# ℹ️ Erklärung Signale (ausklappbar)
 with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False):
     st.markdown("""
     Das System screent alle im S&P 500 und NASDAQ 100 enthaltenen Aktien täglich auf folgende **Long-Signale**:
@@ -41,28 +52,16 @@ with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False
       Tagesvolumen liegt über dem 20-Tage-Durchschnitt, was auf institutionelles Interesse hindeutet.
 
     ### 📊 Nur Aktien, die **mindestens ein Signal** erfüllen, werden angezeigt.
-
     """)
-    
+
     st.image("https://raw.githubusercontent.com/public-quant/visuals/main/ema_reclaim.png", 
-             caption="📈 Beispiel: EMA20-Reclaim mit steigendem Volumen", use_column_width=True)
+             caption="📈 Beispiel: EMA20-Reclaim mit steigendem Volumen", use_container_width=True)
 
     st.image("https://raw.githubusercontent.com/public-quant/visuals/main/cup_handle.png", 
-             caption="🏆 Beispiel: Cup-with-Handle-Formation mit Breakout", use_column_width=True)
+             caption="🏆 Beispiel: Cup-with-Handle-Formation mit Breakout", use_container_width=True)
 
     st.image("https://raw.githubusercontent.com/public-quant/visuals/main/inside_day_breakout.png", 
-             caption="📉 Beispiel: Inside Day mit Ausbruch über das Vortageshoch", use_column_width=True)
-    
-for index, status in index_status.items():
-    st.markdown(f"**{index} Status:**")
-    cols = st.columns(3)
-    for i, (ema, val) in enumerate(status.items()):
-        if val == "über":
-            cols[i].success(f"{ema}: über")
-        elif val == "unter":
-            cols[i].error(f"{ema}: unter")
-        else:
-            cols[i].warning(f"{ema}: n/a")
+             caption="📉 Beispiel: Inside Day mit Ausbruch über das Vortageshoch", use_container_width=True)
 
 st.markdown("---")
 
