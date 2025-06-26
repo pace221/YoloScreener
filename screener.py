@@ -1,15 +1,45 @@
 import yfinance as yf
 import pandas as pd
-from ta.trend import EMAIndicator
-from ta.momentum import RSIIndicator
 from datetime import datetime
 
 def get_tickers():
-    # Kombiniere S&P500 + NASDAQ100 aus Wikipedia
-    sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
-    nasdaq = pd.read_html('https://en.wikipedia.org/wiki/NASDAQ-100')[4]['Ticker'].tolist()
-    tickers = list(set(sp500 + nasdaq))
-    return tickers
+    try:
+        sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
+        nasdaq = pd.read_html('https://en.wikipedia.org/wiki/NASDAQ-100')[4]['Ticker'].tolist()
+        return list(set(sp500 + nasdaq))
+    except:
+        return []
+
+def calculate_ema(series, window):
+    if series is None or series.empty:
+        return pd.Series(index=[], data=[])
+    return series.ewm(span=window, adjust=False).mean()
+
+def get_index_status():
+    return {
+        "SPY": analyze_index("SPY"),
+        "QQQ": analyze_index("QQQ")
+    }
+
+def analyze_index(ticker):
+    try:
+        df = yf.download(ticker, period="3mo", interval="1d", progress=False)
+        if df.empty or 'Close' not in df:
+            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+        df['EMA10'] = calculate_ema(df['Close'], 10)
+        df['EMA20'] = calculate_ema(df['Close'], 20)
+        df['EMA200'] = calculate_ema(df['Close'], 200)
+        latest = df.iloc[-1]
+
+        return {
+            "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
+            "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
+            "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
+        }
+    except Exception as e:
+        print(f"[Indexanalyse Fehler] {ticker}: {e}")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
 def analyze_stock(ticker, active_signals):
     try:
@@ -20,15 +50,14 @@ def analyze_stock(ticker, active_signals):
     except:
         return None
 
-    df['EMA10'] = EMAIndicator(df['Close'], window=10).ema_indicator()
-    df['EMA20'] = EMAIndicator(df['Close'], window=20).ema_indicator()
-    df['EMA200'] = EMAIndicator(df['Close'], window=200).ema_indicator()
-    df['RSI'] = RSIIndicator(df['Close'], window=14).rsi()
+    df['EMA10'] = calculate_ema(df['Close'], 10)
+    df['EMA20'] = calculate_ema(df['Close'], 20)
+    df['EMA200'] = calculate_ema(df['Close'], 200)
+    df['RSI'] = calculate_rsi(df['Close'])
 
     latest = df.iloc[-1]
     signals_detected = []
 
-    # Beispielhafte Logik für jedes Signal
     if "EMA Reclaim" in active_signals:
         if df['Close'].iloc[-2] < df['EMA20'].iloc[-2] and latest['Close'] > latest['EMA20']:
             signals_detected.append("EMA Reclaim")
@@ -51,7 +80,6 @@ def analyze_stock(ticker, active_signals):
             signals_detected.append("Inside Day")
 
     if "Cup-with-Handle" in active_signals:
-        # Platzhalter: Erkennung nicht trivial – hier nur Dummy
         if latest['Close'] > latest['EMA200']:
             signals_detected.append("Cup-with-Handle")
 
@@ -62,7 +90,6 @@ def analyze_stock(ticker, active_signals):
     if not signals_detected:
         return None
 
-    # Entry, SL, TP (Platzhalter)
     entry = round(latest['Close'], 2)
     stop = round(entry * 0.97, 2)
     tp1 = round(entry * 1.05, 2)
@@ -81,6 +108,13 @@ def analyze_stock(ticker, active_signals):
         "KO-Link": generate_ko_link(ticker)
     }
 
+def calculate_rsi(series, window=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
 def get_company_name(ticker):
     try:
         info = yf.Ticker(ticker).info
@@ -90,31 +124,3 @@ def get_company_name(ticker):
 
 def generate_ko_link(ticker):
     return f"https://www.onvista.de/derivate/suche?SEARCH_VALUE={ticker}&TYPE=Knockouts"
-
-def calculate_ema(series, window):
-    return EMAIndicator(close=series, window=window).ema_indicator()
-
-def get_index_status():
-    return {
-        "SPY": analyze_index("SPY"),
-        "QQQ": analyze_index("QQQ")
-    }
-
-def analyze_index(ticker):
-    df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-    if df.empty:
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
-
-    df['EMA10'] = calculate_ema(df['Close'], 10)
-    df['EMA20'] = calculate_ema(df['Close'], 20)
-    df['EMA200'] = calculate_ema(df['Close'], 200)
-    latest = df.iloc[-1]
-
-    try:
-        return {
-            "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
-            "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
-            "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
-        }
-    except:
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
