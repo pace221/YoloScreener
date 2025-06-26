@@ -27,19 +27,31 @@ def calculate_rsi(series, window=14):
 def analyze_index(ticker):
     try:
         df = yf.download(ticker, period="12mo", interval="1d", progress=False)
-        if df.empty or 'Close' not in df.columns or len(df.dropna()) < 220:
-            raise ValueError("Unzureichende Daten")
+        if df.empty or 'Close' not in df.columns:
+            raise ValueError(f"{ticker} enthält keine gültige 'Close'-Spalte.")
+
+        df = df.dropna(subset=['Close']).copy()
+        if len(df) < 220:
+            raise ValueError(f"{ticker}: Nicht genügend Daten für EMA200 (mind. 220 Tage).")
+
         df['EMA10'] = calculate_ema(df['Close'], 10)
         df['EMA20'] = calculate_ema(df['Close'], 20)
         df['EMA200'] = calculate_ema(df['Close'], 200)
+
         latest = df.iloc[-1]
+        ema10 = latest.get('EMA10')
+        ema20 = latest.get('EMA20')
+        ema200 = latest.get('EMA200')
+        close = latest.get('Close')
+
         return {
-            "EMA10": "über" if latest["Close"] > latest["EMA10"] else "unter",
-            "EMA20": "über" if latest["Close"] > latest["EMA20"] else "unter",
-            "EMA200": "über" if latest["Close"] > latest["EMA200"] else "unter"
+            "EMA10": "über" if close > ema10 else "unter",
+            "EMA20": "über" if close > ema20 else "unter",
+            "EMA200": "über" if close > ema200 else "unter"
         }
+
     except Exception as e:
-        print(f"[Fehler] {ticker}: {e}")
+        print(f"[Fehler analyze_index] {ticker}: {e}")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
 def get_index_status():
@@ -124,17 +136,17 @@ def save_results(results_df):
     today = date.today().isoformat()
     results_df = results_df.copy()
     results_df["Datum"] = today
-    if os.path.exists("results.csv"):
-        old = pd.read_csv("results.csv")
+    if os.path.exists(HISTORY_FILE):
+        old = pd.read_csv(HISTORY_FILE)
         combined = pd.concat([old, results_df], ignore_index=True)
     else:
         combined = results_df
-    combined.to_csv("results.csv", index=False)
+    combined.to_csv(HISTORY_FILE, index=False)
 
 def load_recent_stats(days=30):
-    if not os.path.exists("results.csv"):
+    if not os.path.exists(HISTORY_FILE):
         return pd.DataFrame()
-    df = pd.read_csv("results.csv")
+    df = pd.read_csv(HISTORY_FILE)
     df["Datum"] = pd.to_datetime(df["Datum"])
     cutoff = pd.Timestamp.today() - pd.Timedelta(days=days)
     return df[df["Datum"] >= cutoff]
