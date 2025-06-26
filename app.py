@@ -1,5 +1,11 @@
 import streamlit as st
-from screener import get_tickers, analyze_stock, get_index_status
+from screener import (
+    get_tickers,
+    analyze_stock,
+    get_index_status,
+    load_recent_stats,
+    save_results
+)
 from export_pdf import export_to_pdf
 import pandas as pd
 import yfinance as yf
@@ -53,26 +59,15 @@ with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False
 
     ### ✅ Verwendete Signal-Kriterien
 
-    - **EMA Reclaim**  
-      Der Schlusskurs überwindet den EMA10 oder EMA20 nach einem Tag darunter.
+    - **EMA Reclaim**: Schlusskurs über EMA10 oder EMA20 nach einem Tag darunter.
+    - **Breakout 20-Tages-Hoch**: Kurs bricht über den höchsten Stand der letzten 20 Handelstage.
+    - **Cup-with-Handle**: Bodenformation mit Ausbruch nach Konsolidierung.
+    - **SFP**: Tief wird unterboten, Schlusskurs erholt sich über vorheriges Close.
+    - **Inside Day**: Aktueller Tageskerzenkörper vollständig innerhalb der Vortageskerze.
+    - **RSI > 60**: Momentum-Filter zur Trendbestätigung.
+    - **Volumen-Breakout**: Tagesvolumen über 20-Tage-Durchschnitt.
 
-    - **Breakout 20-Tages-Hoch**  
-      Kurs bricht über den höchsten Stand der letzten 20 Handelstage.
-
-    - **Cup-with-Handle**  
-      Klassische Bodenformation mit Ausbruch nach Konsolidierung.
-
-    - **SFP (Swing Failure Pattern)**  
-      Unterschreiten vorheriger Tiefs mit starkem Rebound – häufig als Fehlausbruch gewertet.
-
-    - **Inside Day Breakout**  
-      Tageskerze vollständig innerhalb der Vortageskerze → Ausbruch über das Hoch gilt als Einstieg.
-
-    - **RSI > 60**  
-      Relative Stärke vorhanden, oft Filter zur Bestätigung des Trends.
-
-    - **Volumen-Breakout**  
-      Tagesvolumen liegt über dem 20-Tage-Durchschnitt, was auf institutionelles Interesse hindeutet.
+    _Nur Long-Signale werden berücksichtigt._
     """)
 
 # 🚀 Screening starten
@@ -113,14 +108,38 @@ if st.button("Screening starten"):
                 st.info(f"📅 Screening-Basis: Schlusskurs vom **{latest_data}**")
 
             st.success(f"{len(df)} gültige Setups gefunden!")
+
+            # Ergebnisse anzeigen
             df_show = df.drop(columns=["KO-Link"])
             st.dataframe(df_show)
 
+            # Ergebnisse speichern
+            save_results(df)
+
+            # PDF Export
             export_to_pdf(df)
             with open("trading_signale.pdf", "rb") as f:
                 st.download_button("📥 PDF herunterladen", f, file_name="trading_signale.pdf")
 
+            # KO-Produkte anzeigen
             st.markdown("---")
             st.subheader("🔎 KO-Produkte (OnVista)")
             for _, row in df.iterrows():
                 st.markdown(f"• [{row['Ticker']}: KO-Link öffnen]({row['KO-Link']})", unsafe_allow_html=True)
+
+# 📊 Statistik: Letzte 30 Tage
+st.markdown("---")
+st.subheader("📊 Statistik: Treffer der letzten 30 Tage")
+
+stats_df = load_recent_stats()
+
+if stats_df.empty:
+    st.info("Noch keine Historie verfügbar.")
+else:
+    # Treffer pro Tag
+    treffer_pro_tag = stats_df.groupby("Datum").size().reset_index(name="Anzahl")
+    st.line_chart(treffer_pro_tag.set_index("Datum"))
+
+    # Häufigste Signale
+    signal_stats = stats_df["Signals Detected"].str.get_dummies(sep=", ").sum().sort_values(ascending=False)
+    st.bar_chart(signal_stats)
