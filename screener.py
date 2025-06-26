@@ -29,39 +29,37 @@ def calculate_rsi(series, window=14):
 def analyze_index(ticker):
     try:
         df = yf.download(ticker, period="12mo", interval="1d", progress=False)
-    except Exception as e:
-        print(f"[Fehler] Indexdaten {ticker}: {e}")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    if df.empty:
-        print(f"[WARNUNG] {ticker}: Keine Daten empfangen.")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        if df.empty:
+            print(f"[WARNUNG] {ticker}: Keine Daten empfangen.")
+            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    if 'Close' not in df.columns:
-        print(f"[WARNUNG] {ticker}: Spalte 'Close' fehlt.")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        if 'Close' not in df.columns:
+            print(f"[WARNUNG] {ticker}: Spalte 'Close' fehlt.")
+            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    if df['Close'].isna().sum() > 5:
-        print(f"[WARNUNG] {ticker}: Zu viele fehlende Werte in 'Close'.")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        close_series = df['Close']
+        if close_series.isna().sum() > 5:
+            print(f"[WARNUNG] {ticker}: Zu viele fehlende Werte in 'Close'.")
+            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    if len(df) < 220:
-        print(f"[WARNUNG] {ticker}: Zu wenig Daten für EMA200.")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        if len(df) < 220:
+            print(f"[WARNUNG] {ticker}: Zu wenig Daten für EMA200.")
+            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    df['EMA10'] = calculate_ema(df['Close'], 10)
-    df['EMA20'] = calculate_ema(df['Close'], 20)
-    df['EMA200'] = calculate_ema(df['Close'], 200)
-    latest = df.iloc[-1]
+        df['EMA10'] = calculate_ema(close_series, 10)
+        df['EMA20'] = calculate_ema(close_series, 20)
+        df['EMA200'] = calculate_ema(close_series, 200)
+        latest = df.iloc[-1]
 
-    try:
         return {
             "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
             "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
             "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
         }
+
     except Exception as e:
-        print(f"[Fehler] Indexauswertung {ticker}: {e}")
+        print(f"[Fehler] Indexanalyse für {ticker} fehlgeschlagen: {e}")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
 def get_index_status():
