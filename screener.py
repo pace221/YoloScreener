@@ -1,29 +1,104 @@
 import yfinance as yf
 import pandas as pd
+from ta.trend import EMAIndicator
+from ta.momentum import RSIIndicator
 from datetime import datetime
 
-RISK_EUR = 100
-EURUSD = 1.08
-RISK_USD = RISK_EUR * EURUSD
-
 def get_tickers():
+    # Kombiniere S&P500 + NASDAQ100 aus Wikipedia
     sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
     nasdaq = pd.read_html('https://en.wikipedia.org/wiki/NASDAQ-100')[4]['Ticker'].tolist()
     tickers = list(set(sp500 + nasdaq))
-    return [t.replace('.', '-') for t in tickers]
+    return tickers
+
+def analyze_stock(ticker, active_signals):
+    try:
+        df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+        if df.empty or 'Close' not in df:
+            return None
+        df.dropna(inplace=True)
+    except:
+        return None
+
+    df['EMA10'] = EMAIndicator(df['Close'], window=10).ema_indicator()
+    df['EMA20'] = EMAIndicator(df['Close'], window=20).ema_indicator()
+    df['EMA200'] = EMAIndicator(df['Close'], window=200).ema_indicator()
+    df['RSI'] = RSIIndicator(df['Close'], window=14).rsi()
+
+    latest = df.iloc[-1]
+    signals_detected = []
+
+    # Beispielhafte Logik für jedes Signal
+    if "EMA Reclaim" in active_signals:
+        if df['Close'].iloc[-2] < df['EMA20'].iloc[-2] and latest['Close'] > latest['EMA20']:
+            signals_detected.append("EMA Reclaim")
+
+    if "Breakout 20d High" in active_signals:
+        if latest['Close'] > df['High'].rolling(window=20).max().iloc[-2]:
+            signals_detected.append("Breakout 20d High")
+
+    if "RSI > 60" in active_signals:
+        if latest['RSI'] > 60:
+            signals_detected.append("RSI > 60")
+
+    if "Volumen-Breakout" in active_signals:
+        vol_avg = df['Volume'].rolling(window=20).mean().iloc[-1]
+        if latest['Volume'] > vol_avg:
+            signals_detected.append("Volumen-Breakout")
+
+    if "Inside Day" in active_signals:
+        if df['High'].iloc[-1] < df['High'].iloc[-2] and df['Low'].iloc[-1] > df['Low'].iloc[-2]:
+            signals_detected.append("Inside Day")
+
+    if "Cup-with-Handle" in active_signals:
+        # Platzhalter: Erkennung nicht trivial – hier nur Dummy
+        if latest['Close'] > latest['EMA200']:
+            signals_detected.append("Cup-with-Handle")
+
+    if "SFP" in active_signals:
+        if df['Low'].iloc[-1] < df['Low'].iloc[-2] and latest['Close'] > df['Close'].iloc[-2]:
+            signals_detected.append("SFP")
+
+    if not signals_detected:
+        return None
+
+    # Entry, SL, TP (Platzhalter)
+    entry = round(latest['Close'], 2)
+    stop = round(entry * 0.97, 2)
+    tp1 = round(entry * 1.05, 2)
+    tp2 = round(entry * 1.10, 2)
+    crv = round((tp1 - entry) / (entry - stop), 2)
+
+    return {
+        "Ticker": ticker,
+        "Name": get_company_name(ticker),
+        "Signals Detected": ", ".join(signals_detected),
+        "Entry ($)": entry,
+        "TP1 ($)": tp1,
+        "TP2 ($)": tp2,
+        "SL ($)": stop,
+        "CRV": crv,
+        "KO-Link": generate_ko_link(ticker)
+    }
+
+def get_company_name(ticker):
+    try:
+        info = yf.Ticker(ticker).info
+        return info.get("shortName", "n/a")
+    except:
+        return "n/a"
+
+def generate_ko_link(ticker):
+    return f"https://www.onvista.de/derivate/suche?SEARCH_VALUE={ticker}&TYPE=Knockouts"
 
 def calculate_ema(series, window):
-    return series.ewm(span=window, adjust=False).mean()
+    return EMAIndicator(close=series, window=window).ema_indicator()
 
-def calculate_rsi(series, window=14):
-    delta = series.diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=window).mean()
-    avg_loss = loss.rolling(window=window).mean()
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+def get_index_status():
+    return {
+        "SPY": analyze_index("SPY"),
+        "QQQ": analyze_index("QQQ")
+    }
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
@@ -33,107 +108,13 @@ def analyze_index(ticker):
     df['EMA10'] = calculate_ema(df['Close'], 10)
     df['EMA20'] = calculate_ema(df['Close'], 20)
     df['EMA200'] = calculate_ema(df['Close'], 200)
+    latest = df.iloc[-1]
 
-    close = df['Close'].values[-1]
-    ema10 = df['EMA10'].values[-1]
-    ema20 = df['EMA20'].values[-1]
-    ema200 = df['EMA200'].values[-1]
-
-    return {
-        "EMA10": "über" if close > ema10 else "unter",
-        "EMA20": "über" if close > ema20 else "unter",
-        "EMA200": "über" if close > ema200 else "unter"
-    }
-
-def analyze_stock(ticker):
     try:
-        df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-        df.dropna(inplace=True)
-        if df.shape[0] < 25:
-            return None
-
-        df['EMA10'] = calculate_ema(df['Close'], 10)
-        df['EMA20'] = calculate_ema(df['Close'], 20)
-        df['EMA200'] = calculate_ema(df['Close'], 200)
-        df['Volume_MA20'] = df['Volume'].rolling(window=20).mean()
-        df['RSI'] = calculate_rsi(df['Close'])
-
-        latest = df.iloc[-1]
-        prev = df.iloc[-2]
-        signals = []
-
-        if prev['Close'] < prev['EMA10'] and latest['Close'] > latest['EMA10']:
-            signals.append("EMA10 Reclaim")
-        if prev['Close'] < prev['EMA20'] and latest['Close'] > latest['EMA20']:
-            signals.append("EMA20 Reclaim")
-        if latest['Close'] > df['Close'][-20:].max():
-            signals.append("Breakout 20d High")
-        if latest['Low'] < df['Low'][-5:-1].min() and latest['Close'] > df['Low'][-5:-1].min():
-            signals.append("SFP Rebound")
-        window = df['Close'][-20:]
-        if window.min() < window.mean() * 0.95 and latest['Close'] > window.max():
-            signals.append("Cup w/ Handle")
-        if df['High'].iloc[-2] > latest['High'] and df['Low'].iloc[-2] < latest['Low']:
-            signals.append("Inside Day Breakout")
-        if latest['RSI'] > 60:
-            signals.append("RSI > 60")
-        if latest['Volume'] > latest['Volume_MA20']:
-            signals.append("Volumen-Breakout")
-
-        if not signals:
-            return None
-
-        info = yf.Ticker(ticker).info
-        name = info.get("shortName", "n/a")
-
-        entry = round(latest['Close'] * 1.0025, 2)
-        stop = round(min(latest['Low'], latest['EMA20']), 2)
-        risk_per_share = entry - stop
-        if risk_per_share <= 0:
-            return None
-
-        qty = int(RISK_USD / risk_per_share)
-        tp1 = round(entry + 1 * risk_per_share, 2)
-        tp2 = round(entry + 2 * risk_per_share, 2)
-        tp3 = round(entry + 3 * risk_per_share, 2)
-        crv = round((tp1 - entry) / (entry - stop), 2)
-
-        ko_schwelle = round(stop - (0.01 * stop), 2)
-        ko_abstand = round(((entry - ko_schwelle) / ko_schwelle) * 100, 2)
-        ko_link = f"https://www.onvista.de/derivate/suche/?searchValue={ticker}+long"
-
         return {
-            "Ticker": ticker,
-            "Name": name,
-            "Entry (USD)": entry,
-            "Stop (USD)": stop,
-            "Risk/Share": round(risk_per_share, 2),
-            "Qty (1R=100€)": qty,
-            "TP1": tp1,
-            "TP2": tp2,
-            "TP3": tp3,
-            "CRV": crv,
-            "Signals Detected": ", ".join(signals),
-            "KO-Richtung": "Long",
-            "KO-Schwelle": ko_schwelle,
-            "Abstand KO %": ko_abstand,
-            "KO-Link": ko_link,
-            "Empfehlung": "Intraday Entry auf H1"
+            "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
+            "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
+            "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
         }
-
-    except Exception:
-        return None
-
-def run_screening():
-    tickers = get_tickers()
-    results = []
-    for ticker in tickers:
-        res = analyze_stock(ticker)
-        if res:
-            results.append(res)
-    return pd.DataFrame(results)
-
-def get_index_status():
-    spy_status = analyze_index("SPY")
-    qqq_status = analyze_index("QQQ")
-    return {"SPY": spy_status, "QQQ": qqq_status}
+    except:
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
