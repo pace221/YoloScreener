@@ -1,4 +1,4 @@
-yfinance
-pandas
-fpdf
 streamlit
+yfinance
+fpdf
+pandas
