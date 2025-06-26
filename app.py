@@ -40,6 +40,20 @@ if st.button("Screening starten"):
 
     df = pd.DataFrame(results)
 
+# Datum der Analyse ermitteln
+latest_data = None
+for ticker in df["Ticker"]:
+    try:
+        hist = yf.download(ticker, period="5d", interval="1d", progress=False)
+        if not hist.empty:
+            latest_data = hist.index[-1].strftime("%Y-%m-%d")
+            break
+    except:
+        continue
+
+if latest_data:
+    st.info(f"📅 Screening-Basis: Schlusskurs vom **{latest_data}**")
+    
     if df.empty:
         st.warning("Keine Setups gefunden.")
     else:
