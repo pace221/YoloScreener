@@ -1,6 +1,9 @@
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
+import os
+
+HISTORY_FILE = "results.csv"
 
 def get_tickers():
     try:
@@ -15,31 +18,39 @@ def calculate_ema(series, window):
         return pd.Series(index=[], data=[])
     return series.ewm(span=window, adjust=False).mean()
 
-def get_index_status():
-    return {
-        "SPY": analyze_index("SPY"),
-        "QQQ": analyze_index("QQQ")
-    }
+def calculate_rsi(series, window=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 def analyze_index(ticker):
+    df = yf.download(ticker, period="12mo", interval="1d", progress=False)
+    if df.empty or 'Close' not in df or len(df) < 220:
+        print(f"[WARNUNG] {ticker}: Nicht genug Daten für EMA-Berechnung.")
+        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    df['EMA10'] = calculate_ema(df['Close'], 10)
+    df['EMA20'] = calculate_ema(df['Close'], 20)
+    df['EMA200'] = calculate_ema(df['Close'], 200)
+    latest = df.iloc[-1]
+
     try:
-        df = yf.download(ticker, period="3mo", interval="1d", progress=False)
-        if df.empty or 'Close' not in df:
-            return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
-
-        df['EMA10'] = calculate_ema(df['Close'], 10)
-        df['EMA20'] = calculate_ema(df['Close'], 20)
-        df['EMA200'] = calculate_ema(df['Close'], 200)
-        latest = df.iloc[-1]
-
         return {
             "EMA10": "über" if latest['Close'] > latest['EMA10'] else "unter",
             "EMA20": "über" if latest['Close'] > latest['EMA20'] else "unter",
             "EMA200": "über" if latest['Close'] > latest['EMA200'] else "unter"
         }
     except Exception as e:
-        print(f"[Indexanalyse Fehler] {ticker}: {e}")
+        print(f"[Fehler] Indexauswertung {ticker}: {e}")
         return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+def get_index_status():
+    return {
+        "SPY": analyze_index("SPY"),
+        "QQQ": analyze_index("QQQ")
+    }
 
 def analyze_stock(ticker, active_signals):
     try:
@@ -108,13 +119,6 @@ def analyze_stock(ticker, active_signals):
         "KO-Link": generate_ko_link(ticker)
     }
 
-def calculate_rsi(series, window=14):
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
-
 def get_company_name(ticker):
     try:
         info = yf.Ticker(ticker).info
@@ -124,3 +128,30 @@ def get_company_name(ticker):
 
 def generate_ko_link(ticker):
     return f"https://www.onvista.de/derivate/suche?SEARCH_VALUE={ticker}&TYPE=Knockouts"
+
+def save_results(results_df):
+    if results_df.empty:
+        return
+
+    today = date.today().isoformat()
+    results_df = results_df.copy()
+    results_df["Datum"] = today
+
+    if os.path.exists(HISTORY_FILE):
+        old = pd.read_csv(HISTORY_FILE)
+        combined = pd.concat([old, results_df], ignore_index=True)
+    else:
+        combined = results_df
+
+    combined.to_csv(HISTORY_FILE, index=False)
+
+def load_recent_stats(days=30):
+    if not os.path.exists(HISTORY_FILE):
+        return pd.DataFrame()
+
+    df = pd.read_csv(HISTORY_FILE)
+    df["Datum"] = pd.to_datetime(df["Datum"])
+    cutoff = pd.Timestamp.today() - pd.Timedelta(days=days)
+    recent = df[df["Datum"] >= cutoff]
+
+    return recent
