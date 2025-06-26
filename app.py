@@ -16,8 +16,10 @@ for index, status in index_status.items():
     for i, (ema, val) in enumerate(status.items()):
         if val == "über":
             cols[i].success(f"{ema}: über")
-        else:
+        elif val == "unter":
             cols[i].error(f"{ema}: unter")
+        else:
+            cols[i].warning(f"{ema}: n/a")
 
 st.markdown("---")
 
@@ -39,5 +41,6 @@ if st.button("Screening starten"):
 
             # 🔗 KO-Links anzeigen
             st.markdown("---")
+            st.subheader("🔎 KO-Produkte (OnVista)")
             for i, row in df.iterrows():
-                st.markdown(f"🔎 [KO-Produkte für {row['Ticker']}]({row['KO-Link']})", unsafe_allow_html=True)
+                st.markdown(f"• [{row['Ticker']}: KO-Link öffnen]({row['KO-Link']})", unsafe_allow_html=True)
