@@ -7,7 +7,7 @@ import yfinance as yf
 st.set_page_config(layout="wide")
 st.title("📊 Trading Screener – Long Setups (S&P500 & NASDAQ)")
 
-# 📈 Marktstatus
+# 📈 Marktstatus anzeigen
 st.subheader("📈 Marktstatus")
 index_status = get_index_status()
 for index, status in index_status.items():
@@ -46,7 +46,7 @@ for signal in default_signals:
     if st.checkbox(signal, value=st.session_state.select_all):
         selected_signals.append(signal)
 
-# ℹ️ Erklärung der Signale
+# ℹ️ Erklärung der Signalsuche
 with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False):
     st.markdown("""
     Das System screent alle im S&P 500 und NASDAQ 100 enthaltenen Aktien täglich auf folgende **Long-Signale**:
@@ -54,8 +54,7 @@ with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False
     ### ✅ Verwendete Signal-Kriterien
 
     - **EMA Reclaim**  
-      Der Schlusskurs überwindet den EMA10 oder EMA20 nach einem Tag darunter.  
-      _Hinweis: Trendfortsetzungs- oder Umkehrsignal._
+      Der Schlusskurs überwindet den EMA10 oder EMA20 nach einem Tag darunter.
 
     - **Breakout 20-Tages-Hoch**  
       Kurs bricht über den höchsten Stand der letzten 20 Handelstage.
@@ -74,18 +73,7 @@ with st.expander("ℹ️ Erklärung der Signalsuche & Kriterien", expanded=False
 
     - **Volumen-Breakout**  
       Tagesvolumen liegt über dem 20-Tage-Durchschnitt, was auf institutionelles Interesse hindeutet.
-
-    ### 📊 Nur Aktien, die **mindestens ein aktives Signal** erfüllen, werden angezeigt.
     """)
-
-    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/ema_reclaim.png", 
-             caption="📈 Beispiel: EMA20-Reclaim mit steigendem Volumen", use_container_width=True)
-
-    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/cup_handle.png", 
-             caption="🏆 Beispiel: Cup-with-Handle-Formation mit Breakout", use_container_width=True)
-
-    st.image("https://raw.githubusercontent.com/public-quant/visuals/main/inside_day_breakout.png", 
-             caption="📉 Beispiel: Inside Day mit Ausbruch über das Vortageshoch", use_container_width=True)
 
 # 🚀 Screening starten
 st.markdown("---")
@@ -110,7 +98,7 @@ if st.button("Screening starten"):
         if df.empty:
             st.warning("Keine Setups gefunden.")
         else:
-            # 📅 Datum anzeigen
+            # 📅 Datum der Kursdaten anzeigen
             latest_data = None
             for ticker in df["Ticker"]:
                 try:
