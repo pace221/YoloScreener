@@ -6,7 +6,7 @@ import datetime
 def get_tickers():
     tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
     sp500 = tables[0]['Symbol'].tolist()
-    return sp500[:10]  # Für Test
+    return sp500[:10]  # Zum Testen
 
 def calculate_ema(series, window):
     return EMAIndicator(close=series, window=window).ema_indicator()
@@ -14,16 +14,18 @@ def calculate_ema(series, window):
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
 
-    # Robust: Spalte vorhanden?
     if df.empty:
         return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     if 'Close' not in df.columns:
-        # Manche ETFs heißen 'Adj Close'
         if 'Adj Close' in df.columns:
             df['Close'] = df['Adj Close']
         else:
+            # Gar kein Close verfügbar
             return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    if df['Close'].isnull().all():
+        return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     df = df.dropna(subset=['Close'])
     if df.empty:
@@ -39,7 +41,7 @@ def analyze_index(ticker):
         "Close": round(latest['Close'], 2),
         "EMA10": f"{'über' if latest['Close'] > latest['EMA10'] else 'unter'} ({round(latest['EMA10'], 2)})",
         "EMA20": f"{'über' if latest['Close'] > latest['EMA20'] else 'unter'} ({round(latest['EMA20'], 2)})",
-        "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'], 2)})",
+        "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'], 2)})"
     }
 
 def get_index_status():
@@ -58,6 +60,9 @@ def analyze_stock(ticker, selected_signals):
             df['Close'] = df['Adj Close']
         else:
             return None
+
+    if df['Close'].isnull().all():
+        return None
 
     df = df.dropna(subset=['Close'])
     if len(df) < 30:
