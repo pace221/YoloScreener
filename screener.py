@@ -2,23 +2,27 @@ import pandas as pd
 import yfinance as yf
 
 def get_tickers():
-    """Lade S&P500 Ticker von Wikipedia"""
-    sp500_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    df = pd.read_html(sp500_url)[0]
-    tickers = df['Symbol'].tolist()
-    return tickers
+    """Lade S&P500 Ticker"""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    df = pd.read_html(url)[0]
+    return df['Symbol'].tolist()
 
 def analyze_stock(ticker):
-    """Prüfe ein Beispiel-Signal: Close > EMA10"""
+    """Prüft Beispiel: Close > EMA10"""
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+
+    # Fallback: nutze Adj Close wenn Close fehlt
     if 'Close' not in df.columns:
         if 'Adj Close' in df.columns:
             df['Close'] = df['Adj Close']
         else:
-            return None  # Wenn beides fehlt
+            return None  # Keiner vorhanden
 
-    df.dropna(subset=['Close'], inplace=True)
+    # Wenn Close-Spalte jetzt fehlt: abbrechen
+    if 'Close' not in df.columns:
+        return None
 
+    df = df.dropna(subset=['Close'])
     if df.empty or len(df) < 10:
         return None
 
@@ -30,7 +34,7 @@ def analyze_stock(ticker):
             "Ticker": ticker,
             "Close": round(latest['Close'], 2),
             "EMA10": round(latest['EMA10'], 2),
-            "Signal": "Close über EMA10"
+            "Signal": "Close > EMA10"
         }
     return None
 
