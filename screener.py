@@ -5,6 +5,7 @@ import os
 
 HISTORY_FILE = "results.csv"
 
+
 def get_tickers():
     try:
         sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
@@ -14,8 +15,10 @@ def get_tickers():
         print(f"[Fehler] Ticker-Import: {e}")
         return []
 
+
 def calculate_ema(series, window):
     return series.ewm(span=window, adjust=False).mean()
+
 
 def calculate_rsi(series, window=14):
     delta = series.diff()
@@ -23,6 +26,7 @@ def calculate_rsi(series, window=14):
     loss = -delta.where(delta < 0, 0).rolling(window=window).mean()
     rs = gain / loss
     return 100 - (100 / (1 + rs))
+
 
 def analyze_index(ticker):
     try:
@@ -39,26 +43,43 @@ def analyze_index(ticker):
         df['EMA200'] = calculate_ema(df['Close'], 200)
 
         latest = df.iloc[-1]
-        ema10 = latest.get('EMA10')
-        ema20 = latest.get('EMA20')
-        ema200 = latest.get('EMA200')
-        close = latest.get('Close')
+        close = float(latest['Close'])
+        ema10 = float(latest['EMA10'])
+        ema20 = float(latest['EMA20'])
+        ema200 = float(latest['EMA200'])
 
         return {
-            "EMA10": "über" if close > ema10 else "unter",
-            "EMA20": "über" if close > ema20 else "unter",
-            "EMA200": "über" if close > ema200 else "unter"
+            "Close": round(close, 2),
+            "EMA10": {
+                "Status": "über" if close > ema10 else "unter",
+                "Wert": round(ema10, 2)
+            },
+            "EMA20": {
+                "Status": "über" if close > ema20 else "unter",
+                "Wert": round(ema20, 2)
+            },
+            "EMA200": {
+                "Status": "über" if close > ema200 else "unter",
+                "Wert": round(ema200, 2)
+            }
         }
 
     except Exception as e:
         print(f"[Fehler analyze_index] {ticker}: {e}")
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+        return {
+            "Close": "n/a",
+            "EMA10": {"Status": "n/a", "Wert": "n/a"},
+            "EMA20": {"Status": "n/a", "Wert": "n/a"},
+            "EMA200": {"Status": "n/a", "Wert": "n/a"}
+        }
+
 
 def get_index_status():
     return {
         "SPY": analyze_index("SPY"),
         "QQQ": analyze_index("QQQ")
     }
+
 
 def analyze_stock(ticker, active_signals):
     try:
@@ -120,6 +141,7 @@ def analyze_stock(ticker, active_signals):
         print(f"[Fehler Analyse {ticker}]: {e}")
         return None
 
+
 def get_company_name(ticker):
     try:
         info = yf.Ticker(ticker).info
@@ -127,8 +149,10 @@ def get_company_name(ticker):
     except:
         return "n/a"
 
+
 def generate_ko_link(ticker):
     return f"https://www.onvista.de/derivate/suche?SEARCH_VALUE={ticker}&TYPE=Knockouts"
+
 
 def save_results(results_df):
     if results_df.empty:
@@ -142,6 +166,7 @@ def save_results(results_df):
     else:
         combined = results_df
     combined.to_csv(HISTORY_FILE, index=False)
+
 
 def load_recent_stats(days=30):
     if not os.path.exists(HISTORY_FILE):
