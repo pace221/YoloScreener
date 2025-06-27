@@ -9,16 +9,15 @@ from screener import (
 )
 
 st.set_page_config(page_title="YOLO Screener", layout="wide")
-
 st.title("🚀 YOLO Screener")
 
 st.subheader("📊 Marktstatus")
-index_status = get_index_status()
 
+index_status = get_index_status()
 cols = st.columns(2)
-for i, (index_name, status) in enumerate(index_status.items()):
+for i, (name, status) in enumerate(index_status.items()):
     with cols[i]:
-        st.markdown(f"**{index_name}**")
+        st.markdown(f"**{name}**")
         st.write(f"**Close:** {status['Close']}")
         for ema in ['EMA10', 'EMA20', 'EMA200']:
             val = status[ema]
@@ -26,8 +25,7 @@ for i, (index_name, status) in enumerate(index_status.items()):
             st.write(f"{badge} {ema}: {val['Status']} ({val['Wert']})")
 
 st.markdown("---")
-
-st.subheader("🔎 Screening Signale")
+st.subheader("📌 Signale")
 
 all_signals = [
     "EMA Reclaim",
@@ -42,7 +40,7 @@ all_signals = [
 col1, col2 = st.columns([3, 1])
 with col1:
     selected_signals = st.multiselect(
-        "Signale auswählen:",
+        "Signale auswählen",
         all_signals,
         default=[]
     )
@@ -50,19 +48,17 @@ with col2:
     if st.button("Alle auswählen"):
         selected_signals = all_signals
 
-st.subheader("🔗 Verknüpfung")
-mode = st.radio("Wie sollen die Signale kombiniert werden?", ["ODER", "UND"])
+mode = st.radio("Verknüpfung:", ["ODER", "UND"])
 
 if not selected_signals:
-    st.warning("Bitte mindestens ein Signal auswählen.")
+    st.warning("Bitte mind. ein Signal wählen.")
     st.stop()
 
-st.markdown("---")
-
-if st.button("📈 Screening starten"):
+if st.button("🔍 Screening starten"):
     tickers = get_tickers()
     results = []
     progress = st.progress(0)
+
     for idx, ticker in enumerate(tickers):
         res = analyze_stock(ticker, selected_signals, mode)
         if res:
@@ -75,14 +71,12 @@ if st.button("📈 Screening starten"):
         st.dataframe(df)
         save_results(df)
     else:
-        st.info("🚫 Keine Treffer gefunden.")
+        st.info("Keine Treffer gefunden.")
 
-st.markdown("---")
-
-st.subheader("📅 Statistik der letzten 30 Tage")
+st.subheader("📈 Statistik der letzten 30 Tage")
 history_df = load_recent_stats(30)
 if history_df.empty:
-    st.write("Keine historischen Treffer gefunden.")
+    st.info("Keine Daten vorhanden.")
 else:
-    grouped = history_df.groupby(["Signals Detected", "Ticker"]).size().reset_index(name='Treffer')
+    grouped = history_df.groupby(["Signals Detected", "Ticker"]).size().reset_index(name="Treffer")
     st.dataframe(grouped)
