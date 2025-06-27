@@ -3,25 +3,26 @@ import yfinance as yf
 from ta.trend import EMAIndicator
 import datetime
 
-# Hole SP500 Ticker
+# Hole SP500 Ticker (Test: nur 10!)
 def get_tickers():
     tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
     sp500 = tables[0]['Symbol'].tolist()
-    return sp500[:10]  # TEST: nur 10 Ticker!
+    return sp500[:10]  # Für Tests
 
 # EMA Berechnung
 def calculate_ema(series, window):
     return EMAIndicator(close=series, window=window).ema_indicator()
 
-# Index-Analyse
+# Index-Analyse robust
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
+
     if df.empty or 'Close' not in df.columns:
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a", "Close": "n/a"}
+        return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     df.dropna(subset=['Close'], inplace=True)
     if df.empty:
-        return {"EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a", "Close": "n/a"}
+        return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     df['EMA10'] = calculate_ema(df['Close'], 10)
     df['EMA20'] = calculate_ema(df['Close'], 20)
@@ -31,12 +32,12 @@ def analyze_index(ticker):
 
     return {
         "Close": round(latest['Close'], 2),
-        "EMA10": f"{'über' if latest['Close'] > latest['EMA10'] else 'unter'} ({round(latest['EMA10'],2)})",
-        "EMA20": f"{'über' if latest['Close'] > latest['EMA20'] else 'unter'} ({round(latest['EMA20'],2)})",
-        "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'],2)})",
+        "EMA10": f"{'über' if latest['Close'] > latest['EMA10'] else 'unter'} ({round(latest['EMA10'], 2)})",
+        "EMA20": f"{'über' if latest['Close'] > latest['EMA20'] else 'unter'} ({round(latest['EMA20'], 2)})",
+        "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'], 2)})",
     }
 
-# Alle Indizes
+# Gesamtstatus
 def get_index_status():
     return {
         "SPY": analyze_index("SPY"),
