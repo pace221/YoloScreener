@@ -5,7 +5,7 @@ import screener
 st.set_page_config(page_title="📈 YOLO Screener")
 
 st.title("📈 YOLO Screener")
-st.subheader("Marktstatus")
+st.subheader("📊 Marktstatus")
 
 index_status = screener.get_index_status()
 for index, status in index_status.items():
