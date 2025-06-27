@@ -12,17 +12,16 @@ st.set_page_config(page_title="YOLO Screener", layout="wide")
 st.title("🚀 YOLO Screener")
 
 st.subheader("📊 Marktstatus")
-
 index_status = get_index_status()
+
 cols = st.columns(2)
 for i, (name, status) in enumerate(index_status.items()):
     with cols[i]:
-        st.markdown(f"**{name}**")
+        st.write(f"**{name}**")
         st.write(f"**Close:** {status['Close']}")
         for ema in ['EMA10', 'EMA20', 'EMA200']:
-            val = status[ema]
-            badge = "🟢" if val["Status"] == "über" else "🔴"
-            st.write(f"{badge} {ema}: {val['Status']} ({val['Wert']})")
+            badge = "🟢" if status[ema]['Status'] == "über" else "🔴"
+            st.write(f"{badge} {ema}: {status[ema]['Status']} ({status[ema]['Wert']})")
 
 st.markdown("---")
 st.subheader("📌 Signale")
@@ -38,20 +37,14 @@ all_signals = [
 ]
 
 col1, col2 = st.columns([3, 1])
-with col1:
-    selected_signals = st.multiselect(
-        "Signale auswählen",
-        all_signals,
-        default=[]
-    )
-with col2:
-    if st.button("Alle auswählen"):
-        selected_signals = all_signals
+selected_signals = col1.multiselect("Signale auswählen", all_signals, default=[])
+if col2.button("Alle auswählen"):
+    selected_signals = all_signals
 
 mode = st.radio("Verknüpfung:", ["ODER", "UND"])
 
 if not selected_signals:
-    st.warning("Bitte mind. ein Signal wählen.")
+    st.warning("Bitte mind. ein Signal auswählen.")
     st.stop()
 
 if st.button("🔍 Screening starten"):
@@ -73,10 +66,10 @@ if st.button("🔍 Screening starten"):
     else:
         st.info("Keine Treffer gefunden.")
 
-st.subheader("📈 Statistik der letzten 30 Tage")
+st.subheader("📈 Statistik 30 Tage")
 history_df = load_recent_stats(30)
-if history_df.empty:
-    st.info("Keine Daten vorhanden.")
-else:
-    grouped = history_df.groupby(["Signals Detected", "Ticker"]).size().reset_index(name="Treffer")
+if not history_df.empty:
+    grouped = history_df.groupby(["Signals Detected", "Ticker"]).size().reset_index(name="Anzahl")
     st.dataframe(grouped)
+else:
+    st.info("Noch keine Treffer gespeichert.")
