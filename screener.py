@@ -8,27 +8,28 @@ def get_tickers():
     return df['Symbol'].tolist()
 
 def analyze_stock(ticker):
-    """Prüft Beispiel: Close > EMA10"""
+    """Einfaches Screening: Close > EMA10"""
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
 
-    # Fallback: nutze Adj Close wenn Close fehlt
+    # Fallback: nutze Adj Close, falls Close fehlt
     if 'Close' not in df.columns:
         if 'Adj Close' in df.columns:
             df['Close'] = df['Adj Close']
-        else:
-            return None  # Keiner vorhanden
 
-    # Wenn Close-Spalte jetzt fehlt: abbrechen
+    # Prüfe erneut, ob Close jetzt da ist
     if 'Close' not in df.columns:
+        return None  # Ticker überspringen
+
+    # Prüfe ob Spalte mindestens 1 Wert hat
+    if df['Close'].dropna().empty:
         return None
 
-    df = df.dropna(subset=['Close'])
-    if df.empty or len(df) < 10:
-        return None
-
+    # Berechne EMA10
     df['EMA10'] = df['Close'].ewm(span=10).mean()
 
-    latest = df.iloc[-1]
+    # Prüfe Bedingung
+    latest = df.dropna(subset=['Close']).iloc[-1]
+
     if latest['Close'] > latest['EMA10']:
         return {
             "Ticker": ticker,
