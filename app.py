@@ -2,32 +2,29 @@ import streamlit as st
 import pandas as pd
 import screener
 
-st.set_page_config(page_title="📈 YOLO Screener", layout="wide")
+st.set_page_config(page_title="YOLO Screener", layout="wide")
 
 st.title("📈 YOLO Screener")
 
+# ---------- Marktstatus ----------
 st.header("📊 Marktstatus")
 
-# Abruf der Indizes
 index_status = screener.get_index_status()
 
-# Anzeige Index Status
-cols = st.columns(2)
-for idx, (name, data) in zip(range(2), index_status.items()):
-    with cols[idx]:
-        st.subheader(f"{name} Index")
-        st.metric("Close", data["Close"])
-        st.metric("EMA10", data["EMA10"])
-        st.metric("EMA20", data["EMA20"])
-        st.metric("EMA200", data["EMA200"])
+for index_name, status in index_status.items():
+    st.subheader(f"**{index_name}**")
+    st.write(f"**Close:** {status['Close']}")
+    st.write(f"**EMA10:** {status['EMA10']} | Wert: {status['EMA10_value']}")
+    st.write(f"**EMA20:** {status['EMA20']} | Wert: {status['EMA20_value']}")
+    st.write(f"**EMA200:** {status['EMA200']} | Wert: {status['EMA200_value']}")
 
-st.divider()
+# ---------- Screening ----------
+st.header("🚀 Screening starten")
 
-st.header("📋 Screening Ergebnisse")
-
-if st.button("🚀 Screening starten"):
+if st.button("Jetzt Screening durchführen"):
     df = screener.run_screening()
-    if df.empty:
-        st.warning("Keine Treffer gefunden.")
+    if not df.empty:
+        st.success(f"✅ {len(df)} Treffer gefunden!")
+        st.dataframe(df)
     else:
-        st.dataframe(df, use_container_width=True)
+        st.warning("❌ Keine Treffer gefunden.")
