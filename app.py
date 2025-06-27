@@ -3,20 +3,16 @@ import pandas as pd
 import sys
 import os
 
-sys.path.append(os.path.dirname(__file__))
+# Erzwinge, dass der aktuelle Ordner im Importpfad liegt
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from screener import (
-    get_tickers,
-    analyze_stock,
-    get_index_status,
-    update_signal_history
-)
+import screener
 
 st.title("📈 YOLO Screener")
 
 # Marktstatus
 st.header("📊 Marktstatus")
-index_status = get_index_status()
+index_status = screener.get_index_status()
 
 for index, status in index_status.items():
     st.subheader(f"{index} Status")
@@ -41,11 +37,11 @@ selected_signals = st.multiselect(
 run_button = st.button("📡 Screening starten")
 
 if run_button:
-    tickers = get_tickers()
+    tickers = screener.get_tickers()
     results = []
     progress = st.progress(0)
     for i, ticker in enumerate(tickers):
-        res = analyze_stock(ticker, selected_signals)
+        res = screener.analyze_stock(ticker, selected_signals)
         if res:
             results.append(res)
         progress.progress((i + 1) / len(tickers))
