@@ -1,6 +1,8 @@
 import pandas as pd
 import yfinance as yf
-from ta.trend import EMAIndicator
+
+def calculate_ema(series, window):
+    return series.ewm(span=window, adjust=False).mean()
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
@@ -14,17 +16,15 @@ def analyze_index(ticker):
         else:
             return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    # Fallback falls keine gültigen Close-Werte da sind
-    null_count = df['Close'].isnull().sum()
+    null_count = int(df['Close'].isnull().sum())
     total_rows = len(df)
 
-    # Sicherstellen, dass null_count ein int ist!
-    if int(null_count) >= int(total_rows):
+    if null_count >= total_rows:
         return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    df['EMA10'] = EMAIndicator(close=df['Close'], window=10).ema_indicator()
-    df['EMA20'] = EMAIndicator(close=df['Close'], window=20).ema_indicator()
-    df['EMA200'] = EMAIndicator(close=df['Close'], window=200).ema_indicator()
+    df['EMA10'] = calculate_ema(df['Close'], 10)
+    df['EMA20'] = calculate_ema(df['Close'], 20)
+    df['EMA200'] = calculate_ema(df['Close'], 200)
 
     latest = df.iloc[-1]
 
