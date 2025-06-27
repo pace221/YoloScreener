@@ -5,18 +5,18 @@ def get_index_status():
     indexes = ["SPY", "QQQ"]
     status = {}
     for ticker in indexes:
-        result = analyze_index(ticker)
-        status[ticker] = result
+        status[ticker] = analyze_index(ticker)
     return status
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
 
-    # Robust: Fallback auf 'Adj Close', wenn 'Close' fehlt
+    # Fallback: Falls nur Adj Close da ist → nutze diese
     if 'Close' not in df.columns and 'Adj Close' in df.columns:
         df['Close'] = df['Adj Close']
 
-    if df.empty or 'Close' not in df.columns:
+    # Wenn immer noch keine Spalte 'Close' → gib sauber zurück
+    if 'Close' not in df.columns:
         return {
             "Close": "n/a",
             "EMA10": "n/a", "EMA10_value": "n/a",
@@ -24,11 +24,18 @@ def analyze_index(ticker):
             "EMA200": "n/a", "EMA200_value": "n/a"
         }
 
-    df.dropna(subset=['Close'], inplace=True)
+    df = df.dropna(subset=['Close'])
+    if df.empty:
+        return {
+            "Close": "n/a",
+            "EMA10": "n/a", "EMA10_value": "n/a",
+            "EMA20": "n/a", "EMA20_value": "n/a",
+            "EMA200": "n/a", "EMA200_value": "n/a"
+        }
 
-    df['EMA10'] = df['Close'].ewm(span=10, adjust=False).mean()
-    df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
-    df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
+    df['EMA10'] = df['Close'].ewm(span=10).mean()
+    df['EMA20'] = df['Close'].ewm(span=20).mean()
+    df['EMA200'] = df['Close'].ewm(span=200).mean()
 
     latest = df.iloc[-1]
 
@@ -48,6 +55,7 @@ def analyze_index(ticker):
     }
 
 def run_screening():
+    # DUMMY: Funktioniert, ohne echten Check
     data = {
         "Ticker": ["AAPL", "MSFT"],
         "Signal": ["Breakout", "EMA Reclaim"],
