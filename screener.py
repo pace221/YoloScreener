@@ -11,6 +11,11 @@ def get_index_status():
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+
+    # Robust: Fallback auf 'Adj Close', wenn 'Close' fehlt
+    if 'Close' not in df.columns and 'Adj Close' in df.columns:
+        df['Close'] = df['Adj Close']
+
     if df.empty or 'Close' not in df.columns:
         return {
             "Close": "n/a",
@@ -21,7 +26,6 @@ def analyze_index(ticker):
 
     df.dropna(subset=['Close'], inplace=True)
 
-    # Berechne EMAs robust per pandas ewm
     df['EMA10'] = df['Close'].ewm(span=10, adjust=False).mean()
     df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
     df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
@@ -44,7 +48,6 @@ def analyze_index(ticker):
     }
 
 def run_screening():
-    # Dummy-Treffer, damit du siehst, dass es funktioniert
     data = {
         "Ticker": ["AAPL", "MSFT"],
         "Signal": ["Breakout", "EMA Reclaim"],
