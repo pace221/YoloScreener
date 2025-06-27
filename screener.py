@@ -1,50 +1,55 @@
 import pandas as pd
 import yfinance as yf
 
-def calculate_ema(series, window):
-    return series.ewm(span=window, adjust=False).mean()
+def get_index_status():
+    indexes = ["SPY", "QQQ"]
+    status = {}
+    for ticker in indexes:
+        result = analyze_index(ticker)
+        status[ticker] = result
+    return status
 
 def analyze_index(ticker):
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+    if df.empty or 'Close' not in df.columns:
+        return {
+            "Close": "n/a",
+            "EMA10": "n/a", "EMA10_value": "n/a",
+            "EMA20": "n/a", "EMA20_value": "n/a",
+            "EMA200": "n/a", "EMA200_value": "n/a"
+        }
 
-    if df.empty:
-        return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+    df.dropna(subset=['Close'], inplace=True)
 
-    if 'Close' not in df.columns:
-        if 'Adj Close' in df.columns:
-            df['Close'] = df['Adj Close']
-        else:
-            return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
-
-    null_count = int(df['Close'].isnull().sum())
-    total_rows = len(df)
-
-    if null_count >= total_rows:
-        return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
-
-    df['EMA10'] = calculate_ema(df['Close'], 10)
-    df['EMA20'] = calculate_ema(df['Close'], 20)
-    df['EMA200'] = calculate_ema(df['Close'], 200)
+    # Berechne EMAs robust per pandas ewm
+    df['EMA10'] = df['Close'].ewm(span=10, adjust=False).mean()
+    df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
 
     latest = df.iloc[-1]
 
-    return {
-        "Close": round(latest['Close'], 2),
-        "EMA10": round(latest['EMA10'], 2),
-        "EMA20": round(latest['EMA20'], 2),
-        "EMA200": round(latest['EMA200'], 2)
-    }
+    close = latest['Close']
+    ema10 = latest['EMA10']
+    ema20 = latest['EMA20']
+    ema200 = latest['EMA200']
 
-def get_index_status():
     return {
-        "SPY": analyze_index("SPY"),
-        "QQQ": analyze_index("QQQ")
+        "Close": round(close, 2),
+        "EMA10": "über" if close > ema10 else "unter",
+        "EMA10_value": round(ema10, 2),
+        "EMA20": "über" if close > ema20 else "unter",
+        "EMA20_value": round(ema20, 2),
+        "EMA200": "über" if close > ema200 else "unter",
+        "EMA200_value": round(ema200, 2)
     }
 
 def run_screening():
+    # Dummy-Treffer, damit du siehst, dass es funktioniert
     data = {
         "Ticker": ["AAPL", "MSFT"],
-        "Signal": ["Breakout", "Reversal"],
-        "Take Profit": ["+5%", "+3%"]
+        "Signal": ["Breakout", "EMA Reclaim"],
+        "Einstieg": ["Intraday", "Daily"],
+        "CRV": [2.5, 1.8]
     }
-    return pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    return df
