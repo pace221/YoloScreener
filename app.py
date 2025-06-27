@@ -2,40 +2,32 @@ import streamlit as st
 import pandas as pd
 import screener
 
-st.set_page_config(page_title="📈 YOLO Screener")
+st.set_page_config(page_title="📈 YOLO Screener", layout="wide")
 
 st.title("📈 YOLO Screener")
-st.subheader("📊 Marktstatus")
 
+st.header("📊 Marktstatus")
+
+# Abruf der Indizes
 index_status = screener.get_index_status()
-for index, status in index_status.items():
-    st.write(f"**{index}** - Close: {status['Close']}")
-    st.write(f"EMA10: {status['EMA10']}, EMA20: {status['EMA20']}, EMA200: {status['EMA200']}")
+
+# Anzeige Index Status
+cols = st.columns(2)
+for idx, (name, data) in zip(range(2), index_status.items()):
+    with cols[idx]:
+        st.subheader(f"{name} Index")
+        st.metric("Close", data["Close"])
+        st.metric("EMA10", data["EMA10"])
+        st.metric("EMA20", data["EMA20"])
+        st.metric("EMA200", data["EMA200"])
 
 st.divider()
 
-st.subheader("Signale auswählen")
-available_signals = ["EMA Crossover", "Breakout"]
-selected_signals = st.multiselect("Welche Signale möchtest du prüfen?", available_signals)
+st.header("📋 Screening Ergebnisse")
 
-if st.button("🔍 Screening starten"):
-    if not selected_signals:
-        st.warning("Bitte wähle mindestens ein Signal.")
+if st.button("🚀 Screening starten"):
+    df = screener.run_screening()
+    if df.empty:
+        st.warning("Keine Treffer gefunden.")
     else:
-        tickers = screener.get_tickers()
-        total = len(tickers)
-        progress = st.progress(0)
-        results = []
-
-        for i, ticker in enumerate(tickers):
-            res = screener.analyze_stock(ticker, selected_signals)
-            if res:
-                results.append(res)
-            progress.progress((i + 1) / total)
-
-        if results:
-            df = pd.DataFrame(results)
-            st.success(f"{len(results)} Treffer gefunden!")
-            st.dataframe(df)
-        else:
-            st.info("Keine Treffer für die aktuellen Kriterien.")
+        st.dataframe(df, use_container_width=True)
