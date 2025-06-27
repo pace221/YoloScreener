@@ -3,24 +3,29 @@ import yfinance as yf
 from ta.trend import EMAIndicator
 import datetime
 
-# Hole SP500 Ticker (Test: nur 10!)
 def get_tickers():
     tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
     sp500 = tables[0]['Symbol'].tolist()
-    return sp500[:10]  # Für Tests
+    return sp500[:10]  # Für Test
 
-# EMA Berechnung
 def calculate_ema(series, window):
     return EMAIndicator(close=series, window=window).ema_indicator()
 
-# Index-Analyse robust
 def analyze_index(ticker):
     df = yf.download(ticker, period="3mo", interval="1d", progress=False)
 
-    if df.empty or 'Close' not in df.columns:
+    # Robust: Spalte vorhanden?
+    if df.empty:
         return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
-    df.dropna(subset=['Close'], inplace=True)
+    if 'Close' not in df.columns:
+        # Manche ETFs heißen 'Adj Close'
+        if 'Adj Close' in df.columns:
+            df['Close'] = df['Adj Close']
+        else:
+            return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
+
+    df = df.dropna(subset=['Close'])
     if df.empty:
         return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
@@ -37,20 +42,24 @@ def analyze_index(ticker):
         "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'], 2)})",
     }
 
-# Gesamtstatus
 def get_index_status():
     return {
         "SPY": analyze_index("SPY"),
         "QQQ": analyze_index("QQQ")
     }
 
-# Signal-Check pro Aktie
 def analyze_stock(ticker, selected_signals):
     df = yf.download(ticker, period="6mo", interval="1d", progress=False)
-    if df.empty or 'Close' not in df.columns:
+    if df.empty:
         return None
 
-    df.dropna(subset=['Close'], inplace=True)
+    if 'Close' not in df.columns:
+        if 'Adj Close' in df.columns:
+            df['Close'] = df['Adj Close']
+        else:
+            return None
+
+    df = df.dropna(subset=['Close'])
     if len(df) < 30:
         return None
 
