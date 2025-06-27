@@ -6,7 +6,7 @@ import datetime
 def get_tickers():
     tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
     sp500 = tables[0]['Symbol'].tolist()
-    return sp500[:10]  # Zum Testen
+    return sp500[:10]  # Teste mit kleinerer Liste
 
 def calculate_ema(series, window):
     return EMAIndicator(close=series, window=window).ema_indicator()
@@ -21,7 +21,6 @@ def analyze_index(ticker):
         if 'Adj Close' in df.columns:
             df['Close'] = df['Adj Close']
         else:
-            # Gar kein Close verfügbar
             return {"Close": "n/a", "EMA10": "n/a", "EMA20": "n/a", "EMA200": "n/a"}
 
     if df['Close'].isnull().all():
@@ -37,11 +36,16 @@ def analyze_index(ticker):
 
     latest = df.iloc[-1]
 
+    close_price = float(latest['Close'])
+    ema10 = float(latest['EMA10'])
+    ema20 = float(latest['EMA20'])
+    ema200 = float(latest['EMA200'])
+
     return {
-        "Close": round(latest['Close'], 2),
-        "EMA10": f"{'über' if latest['Close'] > latest['EMA10'] else 'unter'} ({round(latest['EMA10'], 2)})",
-        "EMA20": f"{'über' if latest['Close'] > latest['EMA20'] else 'unter'} ({round(latest['EMA20'], 2)})",
-        "EMA200": f"{'über' if latest['Close'] > latest['EMA200'] else 'unter'} ({round(latest['EMA200'], 2)})"
+        "Close": f"{close_price:.2f}",
+        "EMA10": f"{'über' if close_price > ema10 else 'unter'} ({ema10:.2f})",
+        "EMA20": f"{'über' if close_price > ema20 else 'unter'} ({ema20:.2f})",
+        "EMA200": f"{'über' if close_price > ema200 else 'unter'} ({ema200:.2f})"
     }
 
 def get_index_status():
