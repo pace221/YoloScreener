@@ -32,11 +32,22 @@ def analyze_index(ticker):
     try:
         df = yf.download(ticker, period="12mo", interval="1d", progress=False)
         if df.empty or 'Close' not in df.columns:
-            raise ValueError(f"{ticker} enthält keine gültige 'Close'-Spalte.")
+            return {
+                "Close": "Fehler",
+                "EMA10": {"Status": "n/a", "Wert": "n/a"},
+                "EMA20": {"Status": "n/a", "Wert": "n/a"},
+                "EMA200": {"Status": "n/a", "Wert": "n/a"}
+            }
 
         df = df.dropna(subset=['Close']).copy()
+
         if len(df) < 220:
-            raise ValueError(f"{ticker}: Nicht genügend Daten für EMA200 (mind. 220 Tage).")
+            return {
+                "Close": "Fehler",
+                "EMA10": {"Status": "n/a", "Wert": "n/a"},
+                "EMA20": {"Status": "n/a", "Wert": "n/a"},
+                "EMA200": {"Status": "n/a", "Wert": "n/a"}
+            }
 
         df['EMA10'] = calculate_ema(df['Close'], 10)
         df['EMA20'] = calculate_ema(df['Close'], 20)
@@ -67,7 +78,7 @@ def analyze_index(ticker):
     except Exception as e:
         print(f"[Fehler analyze_index] {ticker}: {e}")
         return {
-            "Close": "n/a",
+            "Close": "Fehler",
             "EMA10": {"Status": "n/a", "Wert": "n/a"},
             "EMA20": {"Status": "n/a", "Wert": "n/a"},
             "EMA200": {"Status": "n/a", "Wert": "n/a"}
@@ -81,7 +92,7 @@ def get_index_status():
     }
 
 
-def analyze_stock(ticker, active_signals):
+def analyze_stock(ticker, active_signals, mode="OR"):
     try:
         df = yf.download(ticker, period="6mo", interval="1d", progress=False)
         if df.empty or 'Close' not in df.columns:
@@ -93,32 +104,36 @@ def analyze_stock(ticker, active_signals):
         df['RSI'] = calculate_rsi(df['Close'])
 
         latest = df.iloc[-1]
-        signals_detected = []
+        detected = []
 
         if "EMA Reclaim" in active_signals:
             if df['Close'].iloc[-2] < df['EMA20'].iloc[-2] and latest['Close'] > latest['EMA20']:
-                signals_detected.append("EMA Reclaim")
+                detected.append("EMA Reclaim")
         if "Breakout 20d High" in active_signals:
             highest_20d = df['High'].rolling(window=20).max().shift(1)
             if latest['Close'] > highest_20d.iloc[-1]:
-                signals_detected.append("Breakout 20d High")
+                detected.append("Breakout 20d High")
         if "RSI > 60" in active_signals and latest['RSI'] > 60:
-            signals_detected.append("RSI > 60")
+            detected.append("RSI > 60")
         if "Volumen-Breakout" in active_signals:
             vol_avg = df['Volume'].rolling(window=20).mean().iloc[-1]
             if latest['Volume'] > vol_avg:
-                signals_detected.append("Volumen-Breakout")
+                detected.append("Volumen-Breakout")
         if "Inside Day" in active_signals:
             if df['High'].iloc[-1] < df['High'].iloc[-2] and df['Low'].iloc[-1] > df['Low'].iloc[-2]:
-                signals_detected.append("Inside Day")
+                detected.append("Inside Day")
         if "Cup-with-Handle" in active_signals and latest['Close'] > latest['EMA200']:
-            signals_detected.append("Cup-with-Handle")
+            detected.append("Cup-with-Handle")
         if "SFP" in active_signals:
             if df['Low'].iloc[-1] < df['Low'].iloc[-2] and latest['Close'] > df['Close'].iloc[-2]:
-                signals_detected.append("SFP")
+                detected.append("SFP")
 
-        if not signals_detected:
-            return None
+        if mode == "AND":
+            if not all(signal in detected for signal in active_signals):
+                return None
+        elif mode == "OR":
+            if not detected:
+                return None
 
         entry = round(latest['Close'], 2)
         stop = round(entry * 0.97, 2)
@@ -129,7 +144,7 @@ def analyze_stock(ticker, active_signals):
         return {
             "Ticker": ticker,
             "Name": get_company_name(ticker),
-            "Signals Detected": ", ".join(signals_detected),
+            "Signals Detected": ", ".join(detected),
             "Entry ($)": entry,
             "TP1 ($)": tp1,
             "TP2 ($)": tp2,
