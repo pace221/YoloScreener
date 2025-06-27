@@ -12,11 +12,13 @@ def get_tickers():
         nasdaq = pd.read_html('https://en.wikipedia.org/wiki/NASDAQ-100')[4]['Ticker'].tolist()
         return list(set(sp500 + nasdaq))
     except Exception as e:
-        print(f"[Fehler] Ticker-Import: {e}")
+        print(f"[Fehler Tickers]: {e}")
         return []
 
 
 def calculate_ema(series, window):
+    if series.empty:
+        return pd.Series()
     return series.ewm(span=window, adjust=False).mean()
 
 
@@ -30,30 +32,21 @@ def calculate_rsi(series, window=14):
 
 def analyze_index(ticker):
     try:
-        df = yf.download(ticker, period="12mo", interval="1d", progress=False)
-        if df.empty or 'Close' not in df.columns:
+        df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+        if df.empty or 'Close' not in df.columns or df['Close'].isnull().all():
             return {
-                "Close": "Fehler",
+                "Close": "n/a",
                 "EMA10": {"Status": "n/a", "Wert": "n/a"},
                 "EMA20": {"Status": "n/a", "Wert": "n/a"},
                 "EMA200": {"Status": "n/a", "Wert": "n/a"}
             }
 
         df = df.dropna(subset=['Close']).copy()
-
-        if len(df) < 220:
-            return {
-                "Close": "Fehler",
-                "EMA10": {"Status": "n/a", "Wert": "n/a"},
-                "EMA20": {"Status": "n/a", "Wert": "n/a"},
-                "EMA200": {"Status": "n/a", "Wert": "n/a"}
-            }
-
         df['EMA10'] = calculate_ema(df['Close'], 10)
         df['EMA20'] = calculate_ema(df['Close'], 20)
         df['EMA200'] = calculate_ema(df['Close'], 200)
-
         latest = df.iloc[-1]
+
         close = float(latest['Close'])
         ema10 = float(latest['EMA10'])
         ema20 = float(latest['EMA20'])
@@ -74,11 +67,10 @@ def analyze_index(ticker):
                 "Wert": round(ema200, 2)
             }
         }
-
     except Exception as e:
-        print(f"[Fehler analyze_index] {ticker}: {e}")
+        print(f"[Fehler Index {ticker}]: {e}")
         return {
-            "Close": "Fehler",
+            "Close": "n/a",
             "EMA10": {"Status": "n/a", "Wert": "n/a"},
             "EMA20": {"Status": "n/a", "Wert": "n/a"},
             "EMA200": {"Status": "n/a", "Wert": "n/a"}
@@ -98,6 +90,7 @@ def analyze_stock(ticker, active_signals, mode="OR"):
         if df.empty or 'Close' not in df.columns:
             return None
         df.dropna(inplace=True)
+
         df['EMA10'] = calculate_ema(df['Close'], 10)
         df['EMA20'] = calculate_ema(df['Close'], 20)
         df['EMA200'] = calculate_ema(df['Close'], 200)
@@ -128,12 +121,10 @@ def analyze_stock(ticker, active_signals, mode="OR"):
             if df['Low'].iloc[-1] < df['Low'].iloc[-2] and latest['Close'] > df['Close'].iloc[-2]:
                 detected.append("SFP")
 
-        if mode == "AND":
-            if not all(signal in detected for signal in active_signals):
-                return None
-        elif mode == "OR":
-            if not detected:
-                return None
+        if mode == "AND" and not all(sig in detected for sig in active_signals):
+            return None
+        if mode == "OR" and not detected:
+            return None
 
         entry = round(latest['Close'], 2)
         stop = round(entry * 0.97, 2)
